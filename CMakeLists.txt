@@ -17,7 +17,7 @@ include(JUCEDefaults)
 # This is the internal name of the project and the name of JUCE's shared code target
 # Note: This cannot have spaces (it may be 2024, but you can't have it all!)
 # Worry not, JUCE's PRODUCT_NAME can have spaces (and is what DAWs display)
-set(PROJECT_NAME "Fdbk")
+set(PROJECT_NAME "FDBK_DELAY")
 
 # Worry not, JUCE's PRODUCT_NAME can have spaces (and is what DAWs will display)
 # You can also just have it be the same thing as PROJECT_NAME
@@ -25,7 +25,7 @@ set(PROJECT_NAME "Fdbk")
 #   set(PROJECT_NAME "MyPlugin_v${MAJOR_VERSION}")
 # Doing so enables major versions to show up in IDEs and DAWs as separate plugins
 # allowing you to change parameters and behavior without breaking existing user projects
-set(PRODUCT_NAME "Fdbk")
+set(PRODUCT_NAME "FDBK_DELAY")
 
 # Change me! Used for the MacOS bundle name and Installers
 set(COMPANY_NAME "Wavcache")
@@ -50,6 +50,13 @@ project(${PROJECT_NAME} VERSION ${CURRENT_VERSION})
 # and later `git submodule update --remote --merge` to keep it up to date
 # On Github Actions, this is done as a part of actions/checkout
 add_subdirectory(JUCE)
+
+# Expose the JUCE AudioPluginHost target in this workspace so it can be built from CLion
+# Marked EXCLUDE_FROM_ALL so it won't build unless explicitly selected
+add_subdirectory(JUCE/extras/AudioPluginHost EXCLUDE_FROM_ALL)
+
+# Add the AudioFilePlayer plugin targets so they can be built from CLion
+add_subdirectory(AudioFilePlayerPlugin)
 
 # Add CLAP format
 add_subdirectory(modules/clap-juce-extensions EXCLUDE_FROM_ALL)

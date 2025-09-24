@@ -1,5 +1,5 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
+#include "DelayPluginEditor.h"
 
 //==============================================================================
 PluginProcessor::PluginProcessor()
@@ -159,7 +159,7 @@ bool PluginProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* PluginProcessor::createEditor()
 {
-    return new PluginEditor (*this);
+    return new DelayPluginEditor (*this);
 }
 
 //==============================================================================

@@ -1,6 +1,6 @@
-#include "PluginEditor.h"
+#include "DelayPluginEditor.h"
 
-PluginEditor::PluginEditor (PluginProcessor& p)
+DelayPluginEditor::DelayPluginEditor (PluginProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
 {
     juce::ignoreUnused (processorRef);
@@ -23,26 +23,24 @@ PluginEditor::PluginEditor (PluginProcessor& p)
     setSize (400, 300);
 }
 
-PluginEditor::~PluginEditor()
+DelayPluginEditor::~DelayPluginEditor()
 {
 }
 
-void PluginEditor::paint (juce::Graphics& g)
+void DelayPluginEditor::paint (juce::Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-
-    auto area = getLocalBounds();
     g.setColour (juce::Colours::white);
-    g.setFont (16.0f);
-    auto helloWorld = juce::String ("Hello from ") + PRODUCT_NAME_WITHOUT_VERSION + " v" VERSION + " running in " + CMAKE_BUILD_TYPE;
-    g.drawText (helloWorld, area.removeFromTop (150), juce::Justification::centred, false);
+    g.setFont (juce::Font(40.0f));
+    g.drawFittedText ("FDBK v1.0", getLocalBounds(), juce::Justification::centred, 1);
 }
 
-void PluginEditor::resized()
+void DelayPluginEditor::resized()
 {
-    // layout the positions of your child components here
-    auto area = getLocalBounds();
-    area.removeFromBottom(50);
-    inspectButton.setBounds (getLocalBounds().withSizeKeepingCentre(100, 50));
+    // this is a button. layout the positions of your child components here
+
+    //auto area = getLocalBounds();
+    //area.removeFromBottom(50);
+    //inspectButton.setBounds (getLocalBounds().withSizeKeepingCentre(100, 50));
 }
+
