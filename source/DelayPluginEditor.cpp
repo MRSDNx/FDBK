@@ -1,11 +1,15 @@
 #include "DelayPluginEditor.h"
 
-DelayPluginEditor::DelayPluginEditor (PluginProcessor& p)
+DelayPluginEditor::DelayPluginEditor (DelayPluginProcessor& p)
     : AudioProcessorEditor (&p), processorRef (p)
 {
     juce::ignoreUnused (processorRef);
 
     addAndMakeVisible (inspectButton);
+
+    // allow host/user to resize and provide sensible limits so hosts know we can scale
+    setResizable (true, false);
+    setResizeLimits (300, 200, 2000, 2000);
 
     // this chunk of code instantiates and opens the melatonin inspector
     inspectButton.onClick = [&] {
@@ -18,9 +22,8 @@ DelayPluginEditor::DelayPluginEditor (PluginProcessor& p)
         inspector->setVisible (true);
     };
 
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-    setSize (400, 300);
+    // initial editor size
+    setSize (600, 400);
 }
 
 DelayPluginEditor::~DelayPluginEditor()
@@ -37,10 +40,9 @@ void DelayPluginEditor::paint (juce::Graphics& g)
 
 void DelayPluginEditor::resized()
 {
-    // this is a button. layout the positions of your child components here
-
-    //auto area = getLocalBounds();
-    //area.removeFromBottom(50);
-    //inspectButton.setBounds (getLocalBounds().withSizeKeepingCentre(100, 50));
+    // layout child components relative to current size so they scale with the editor
+    auto area = getLocalBounds();
+    auto buttonSize = juce::Rectangle<int> {}.withSize (juce::jmin (area.getWidth(), 200), 40);
+    inspectButton.setBounds (area.withSizeKeepingCentre (buttonSize.getWidth(), buttonSize.getHeight()));
 }
 

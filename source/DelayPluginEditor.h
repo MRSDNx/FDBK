@@ -1,14 +1,14 @@
 #pragma once
 
-#include "PluginProcessor.h"
 #include "BinaryData.h"
+#include "DelayPluginProcessor.h"
 #include "melatonin_inspector/melatonin_inspector.h"
 
 //==============================================================================
 class DelayPluginEditor : public juce::AudioProcessorEditor
 {
 public:
-    explicit DelayPluginEditor (PluginProcessor&);
+    explicit DelayPluginEditor (DelayPluginProcessor&);
     ~DelayPluginEditor() override;
 
     //==============================================================================
@@ -18,7 +18,7 @@ public:
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
-    PluginProcessor& processorRef;
+    DelayPluginProcessor& processorRef;
     std::unique_ptr<melatonin::Inspector> inspector;
     juce::TextButton inspectButton { "Inspect the UI" };
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayPluginEditor)

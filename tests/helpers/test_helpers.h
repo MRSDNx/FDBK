@@ -1,5 +1,5 @@
 #pragma once
-#include <PluginProcessor.h>
+#include <DelayPluginProcessor.h>
 
 /* This is a helper function to run tests within the context of a plugin editor.
  *
@@ -7,7 +7,7 @@
  *
  * Example usage (screenshots the plugin)
  *
-  runWithinPluginEditor ([&] (PluginProcessor& plugin) {
+  runWithinPluginEditor ([&] (DelayPluginProcessor& plugin) {
     auto snapshot = plugin.getActiveEditor()->createComponentSnapshot (plugin.getActiveEditor()->getLocalBounds(), true, 2.0f);
     auto file = juce::File::getSpecialLocation (juce::File::SpecialLocationType::userDocumentsDirectory).getChildFile ("snapshot.jpeg");
     file.deleteFile();
@@ -19,9 +19,9 @@
    });
 
  */
-[[maybe_unused]] static void runWithinPluginEditor (const std::function<void (PluginProcessor& plugin)>& testCode)
+[[maybe_unused]] static void runWithinPluginEditor (const std::function<void (DelayPluginProcessor& plugin)>& testCode)
 {
-    PluginProcessor plugin;
+    DelayPluginProcessor plugin;
     const auto editor = plugin.createEditorIfNeeded();
 
     testCode (plugin);
