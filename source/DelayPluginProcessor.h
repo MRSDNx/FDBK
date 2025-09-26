@@ -1,8 +1,7 @@
 #pragma once
 #include "Parameters.h"
 #include <juce_audio_processors/juce_audio_processors.h>
-
-
+#include <juce_dsp/juce_dsp.h>
 
 #if (MSVC)
 #include "ipps.h"
@@ -11,6 +10,7 @@
 class DelayPluginProcessor : public juce::AudioProcessor
 {
 public:
+
     DelayPluginProcessor();
     ~DelayPluginProcessor() override;
 
@@ -43,6 +43,8 @@ public:
 private:
     juce::AudioProcessorValueTreeState apvts{*this, nullptr, "Parameters", Parameters::createParameterLayout() };
     Parameters params;
+
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delayLine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayPluginProcessor)
 };

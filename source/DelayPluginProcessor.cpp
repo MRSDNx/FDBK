@@ -9,7 +9,6 @@ DelayPluginProcessor::DelayPluginProcessor():
        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
        ), params(apvts)
 {
-
 }
 
 DelayPluginProcessor::~DelayPluginProcessor()
@@ -86,6 +85,20 @@ void DelayPluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
 {
     params.prepareToPlay(sampleRate);
     params.reset();
+
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = juce::uint32(samplesPerBlock); // type cast from the data type of samplesPerBlock. only holds +nums
+    spec.numChannels = 2;
+
+    delayLine.prepare(spec);
+
+    double numSamples = Parameters::maxDelayTime / 1000.0 * sampleRate;
+    int maxDelayInSamples = int(std::ceil(numSamples));
+    delayLine.setMaximumDelayInSamples(maxDelayInSamples);
+    delayLine.reset();
+
+    // DBG(maxDelayInSamples);
 }
 
 void DelayPluginProcessor::releaseResources()
@@ -117,6 +130,8 @@ void DelayPluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, [[may
 
     params.update();
 
+    float sampleRate = float(getSampleRate());
+
     float* channelDataL = buffer.getWritePointer(0);
     float* channelDataR = buffer.getWritePointer(1);
 
@@ -124,8 +139,23 @@ void DelayPluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, [[may
     {
         params.smoothen();
 
-        channelDataL[sample] *= params.gain;
-        channelDataR[sample] *= params.gain;
+        float delayInSamples = params.delayTime * 0.001f * sampleRate;
+        delayLine.setDelay(delayInSamples);
+
+        float dryL = channelDataL[sample];
+        float dryR = channelDataR[sample];
+
+        delayLine.pushSample(0, dryL);
+        delayLine.pushSample(1, dryR);
+
+        float wetL = delayLine.popSample(0);
+        float wetR = delayLine.popSample(1);
+
+        float mixL = dryL + wetL * params.mix;
+        float mixR = dryR + wetR * params.mix;
+
+        channelDataL[sample] = mixL * params.gain;
+        channelDataR[sample] = mixR * params.gain;
     }
 }
 
@@ -164,9 +194,4 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
     return new DelayPluginProcessor();
 }
 
-void Parameters::update() noexcept
-{
-    // Update the smoother's target when the parameter changes; the actual
-    // gain value will be read via smoothen() per-sample to avoid zipper noise.
-    gainSmoother.setTargetValue(juce::Decibels::decibelsToGain(gainParam->get()));
-}
+
