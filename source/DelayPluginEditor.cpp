@@ -11,7 +11,7 @@ DelayPluginEditor::DelayPluginEditor (DelayPluginProcessor& p)
     addAndMakeVisible (inspectButton);
 
     // allow host/user to resize and provide sensible limits so hosts know we can scale
-    setResizable (true, false);
+    setResizable (true, true);
     setResizeLimits (300, 200, 2000, 2000);
 
     // this chunk of code instantiates and opens the melatonin inspector
