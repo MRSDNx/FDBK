@@ -1,10 +1,13 @@
 #include "DelayPluginEditor.h"
 
-DelayPluginEditor::DelayPluginEditor (DelayPluginProcessor& p)
-    : AudioProcessorEditor (&p), processorRef (p)
-{
-    juce::ignoreUnused (processorRef);
 
+DelayPluginEditor::DelayPluginEditor (DelayPluginProcessor& p)
+    : AudioProcessorEditor (&p)
+    , processorRef (p)
+    , gainKnob("Gain", processorRef.apvts, gainParamID)
+    , mixKnob("Mix", processorRef.apvts, mixParamID)
+    , delayTimeKnob("Delay Time", processorRef.apvts, delayTimeParamID)
+{
     addAndMakeVisible (inspectButton);
 
     // allow host/user to resize and provide sensible limits so hosts know we can scale
@@ -22,8 +25,23 @@ DelayPluginEditor::DelayPluginEditor (DelayPluginProcessor& p)
         inspector->setVisible (true);
     };
 
+    delayGroup.setText("Delay");
+    delayGroup.setTextLabelPosition(juce::Justification::horizontallyCentred);
+    delayGroup.addAndMakeVisible(delayTimeKnob);
+    addAndMakeVisible(delayGroup);
+
+    feedbackGroup.setText("Feedback");
+    feedbackGroup.setTextLabelPosition(juce::Justification::horizontallyCentred);
+    addAndMakeVisible(feedbackGroup);
+
+    outputGroup.setText("Output");
+    outputGroup.setTextLabelPosition(juce::Justification::horizontallyCentred);
+    outputGroup.addAndMakeVisible(gainKnob);
+    outputGroup.addAndMakeVisible(mixKnob);
+    addAndMakeVisible(outputGroup);
+
     // initial editor size
-    setSize (600, 400);
+    setSize (500, 330);
 }
 
 DelayPluginEditor::~DelayPluginEditor()
@@ -32,17 +50,23 @@ DelayPluginEditor::~DelayPluginEditor()
 
 void DelayPluginEditor::paint (juce::Graphics& g)
 {
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
-    g.setColour (juce::Colours::white);
-    g.setFont (juce::Font(40.0f));
-    g.drawFittedText ("FDBK v1.0", getLocalBounds(), juce::Justification::centred, 1);
+    g.fillAll(juce::Colours::darkgrey);
 }
 
 void DelayPluginEditor::resized()
 {
-    // layout child components relative to current size so they scale with the editor
-    auto area = getLocalBounds();
-    auto buttonSize = juce::Rectangle<int> {}.withSize (juce::jmin (area.getWidth(), 200), 40);
-    inspectButton.setBounds (area.withSizeKeepingCentre (buttonSize.getWidth(), buttonSize.getHeight()));
+    auto bounds = getLocalBounds();
+
+    int y = 10;
+    int height = bounds.getHeight() - 20;
+
+    delayGroup.setBounds(10, y, 110, height);
+    outputGroup.setBounds(bounds.getWidth() - 160, y, 150, height);
+    feedbackGroup.setBounds(delayGroup.getRight() + 10, y, outputGroup.getX() - delayGroup.getRight() - 20, height);
+
+    delayTimeKnob.setTopLeftPosition(20, 20);
+    mixKnob.setTopLeftPosition(20, 20);
+    gainKnob.setTopLeftPosition(mixKnob.getX(), mixKnob.getBottom() + 10);
+
 }
 

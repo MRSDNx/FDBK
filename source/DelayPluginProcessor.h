@@ -11,6 +11,8 @@ class DelayPluginProcessor : public juce::AudioProcessor
 {
 public:
 
+    juce::AudioProcessorValueTreeState apvts{*this, nullptr, "Parameters", Parameters::createParameterLayout() };
+
     DelayPluginProcessor();
     ~DelayPluginProcessor() override;
 
@@ -41,7 +43,7 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
-    juce::AudioProcessorValueTreeState apvts{*this, nullptr, "Parameters", Parameters::createParameterLayout() };
+
     Parameters params;
 
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delayLine;
