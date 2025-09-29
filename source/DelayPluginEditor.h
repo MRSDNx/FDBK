@@ -4,6 +4,7 @@
 #include "DelayPluginProcessor.h"
 #include "Parameters.h"
 #include "RotaryKnob.h"
+#include "LookAndFeel.h"
 #include "melatonin_inspector/melatonin_inspector.h"
 
 //==============================================================================

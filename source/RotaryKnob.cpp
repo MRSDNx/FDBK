@@ -1,9 +1,12 @@
 // Created by Benjahmin Singh-Reynolds on 9/26/25.
 
 #include "RotaryKnob.h"
+#include "LookAndFeel.h"
 
-RotaryKnob::RotaryKnob(const juce::String& text, juce::AudioProcessorValueTreeState& apvts, const juce::ParameterID& parameterID) : attachment(apvts, parameterID.getParamID(), slider)
+RotaryKnob::RotaryKnob(const juce::String& text, juce::AudioProcessorValueTreeState& apvts, const juce::ParameterID& parameterID, bool drawFromMiddle) :
+                        attachment(apvts, parameterID.getParamID(), slider)
 {
+
     slider.setSliderStyle(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag);
     slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 70, 16);
     slider.setBounds(0, 0, 70, 86);
@@ -14,6 +17,12 @@ RotaryKnob::RotaryKnob(const juce::String& text, juce::AudioProcessorValueTreeSt
     label.setBorderSize(juce::BorderSize<int>{0, 0, 2, 0});
     label.attachToComponent(&slider, false);
     addAndMakeVisible(label);
+
+    setLookAndFeel(RotaryKnobLookAndFeel::get());
+
+    float pi = juce::MathConstants<float>::pi;
+    slider.setRotaryParameters(1.25f * pi, 2.75f * pi, true);
+    slider.getProperties().set("drawFromMiddle", drawFromMiddle);
 
     setSize(70, 110);
 }

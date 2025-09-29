@@ -4,11 +4,12 @@
 DelayPluginEditor::DelayPluginEditor (DelayPluginProcessor& p)
     : AudioProcessorEditor (&p)
     , processorRef (p)
-    , gainKnob("Gain", processorRef.apvts, gainParamID)
+    , gainKnob("Gain", processorRef.apvts, gainParamID, true)
     , mixKnob("Mix", processorRef.apvts, mixParamID)
     , delayTimeKnob("Delay Time", processorRef.apvts, delayTimeParamID)
 {
     addAndMakeVisible (inspectButton);
+    gainKnob.slider.setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::green);
 
     // allow host/user to resize and provide sensible limits so hosts know we can scale
     setResizable (true, true);
@@ -50,7 +51,7 @@ DelayPluginEditor::~DelayPluginEditor()
 
 void DelayPluginEditor::paint (juce::Graphics& g)
 {
-    g.fillAll(juce::Colours::darkgrey);
+    g.fillAll(Colors::background);
 }
 
 void DelayPluginEditor::resized()
