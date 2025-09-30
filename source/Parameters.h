@@ -37,6 +37,9 @@ public:
     float highcut = 0.0f;
     float lowcut = 0.0f;
 
+    float panL = 0.0f;
+    float panR = 1.0f;
+
     static constexpr float minDelayTime = 5.0f;
     static constexpr float maxDelayTime = 5000.0f;
 

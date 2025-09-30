@@ -95,7 +95,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(feedbackParamID, "Feedback",
-        juce::NormalisableRange<float> {0.0f, 100.0f, 1.0f}, 0.0f,
+        juce::NormalisableRange<float> {-100.0f, 100.0f, 1.0f}, 0.0f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(stereoParamID, "Stereo",
@@ -135,6 +135,9 @@ void Parameters::prepareToPlay(double sampleRate) noexcept
 void Parameters::reset() noexcept
 {
     delayTime = 0.0f;
+
+    panL = 0.0f;
+    panR = 1.0f;
 
     mix = 1.0f;
     mixSmoother.setCurrentAndTargetValue(mixParam->get() * 0.01f);
