@@ -8,6 +8,13 @@ namespace BinaryData
 {
     // Pointer to the in-memory font bytes
     extern const char* LatoMedium_ttf;
+    extern const char* Logo_png;
+    extern const char* Noise_png;
+
     // Size in bytes of the font data
     extern const int LatoMedium_ttfSize;
+    extern const int Logo_pngSize;
+    extern const int Noise_pngSize;
+
+
 }

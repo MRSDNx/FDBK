@@ -16,6 +16,10 @@ Parameters::Parameters(juce::AudioProcessorValueTreeState& apvts)
     castParameter(apvts, gainParamID, gainParam);
     castParameter(apvts, delayTimeParamID, delayTimeParam);
     castParameter(apvts, mixParamID, mixParam);
+    castParameter(apvts, feedbackParamID, feedbackParam);
+    castParameter(apvts, stereoParamID, stereoParam);
+    castParameter(apvts, highcutParamID, highcutParam);
+    castParameter(apvts, lowcutParamID, lowcutParam);
 }
 
 static juce::String stringFromMilliseconds(float value, int)
@@ -65,6 +69,11 @@ static juce::String stringFromPercent(float value, int)
     return juce::String(int(value)) + "%";
 }
 
+static juce::String stringFromHz(float value, int)
+{
+    return juce::String(int(value)) + "Hz";
+}
+
 // actually creates the gain slider
 juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterLayout()
 {
@@ -81,10 +90,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         .withStringFromValueFunction(stringFromMilliseconds)
         .withValueFromStringFunction(millisecondsFromString)));
 
-
     layout.add(std::make_unique<juce::AudioParameterFloat>(mixParamID, "Mix",
         juce::NormalisableRange<float> {0.0f, 100.0f, 1.0f}, 100.0f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(feedbackParamID, "Feedback",
+        juce::NormalisableRange<float> {0.0f, 100.0f, 1.0f}, 0.0f,
+        juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(stereoParamID, "Stereo",
+        juce::NormalisableRange<float> {0.0f, 100.0f, 1.0f}, 0.0f,
+        juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(highcutParamID, "High Cut",
+        juce::NormalisableRange<float> {0.0f, 20000.0f, 1.0f}, 20000.0f,
+        juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromHz)));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(lowcutParamID, "Low Cut",
+        juce::NormalisableRange<float> {0.0f, 500.0f, 1.0f}, 0.0f,
+        juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromHz)));
         
     return layout;
 }
@@ -94,7 +118,11 @@ void Parameters::prepareToPlay(double sampleRate) noexcept
 {
     double duration = 0.02; //20ms
     gainSmoother.reset(sampleRate, duration);
-    mixSmoother.reset(sampleRate, duration);// 48000 × 0.02 = 960
+    mixSmoother.reset(sampleRate, duration);
+    feedbackSmoother.reset(sampleRate, duration);
+    stereoSmoother.reset(sampleRate, duration);
+    highcutSmoother.reset(sampleRate, duration);
+    lowcutSmoother.reset(sampleRate, duration);
 
     // After 200ms (0.2f), the 1-pole filter will have approached the target value to within 63.2%.
     // Why? The formula below describes the charge time of an analog capacitor.
@@ -107,8 +135,21 @@ void Parameters::prepareToPlay(double sampleRate) noexcept
 void Parameters::reset() noexcept
 {
     delayTime = 0.0f;
+
     mix = 1.0f;
     mixSmoother.setCurrentAndTargetValue(mixParam->get() * 0.01f);
+
+    feedback = 0.0f;
+    // feedbackSmoother.setCurrentAndTargetValue(feedbackParam->get() * 0.01f);
+
+    stereo = 0.0f;
+    // stereoSmoother.setCurrentAndTargetValue(stereoParam->get() * 0.01f);
+
+    highcut = 0.0f;
+    highcutSmoother.setCurrentAndTargetValue(highcutParam->get() * 0.01f);
+
+    lowcut = 0.0f;
+    lowcutSmoother.setCurrentAndTargetValue(lowcutParam->get() * 0.01f);
 }
 
 void Parameters::smoothen() noexcept
@@ -116,6 +157,10 @@ void Parameters::smoothen() noexcept
     // reads the currently smoothed value and puts it into the gain variable
     gain = gainSmoother.getNextValue();
     mix = mixSmoother.getNextValue();
+    feedback = feedbackSmoother.getNextValue();
+    stereo = stereoSmoother.getNextValue();
+    highcut = highcutSmoother.getNextValue();
+    lowcut = lowcutSmoother.getNextValue();
 
     // the 1-pole filter formula
     delayTime += (targetDelayTime - delayTime) * coeff;
@@ -127,6 +172,10 @@ void Parameters::update() noexcept
     // gain value will be read via smoothen() per-sample to avoid zipper noise.
     gainSmoother.setTargetValue(juce::Decibels::decibelsToGain(gainParam->get()));
     mixSmoother.setTargetValue(mixParam->get() * 0.01f);
+    feedbackSmoother.setTargetValue(feedbackParam->get() * 0.01f);
+    stereoSmoother.setTargetValue(stereoParam->get() * 0.01f);
+    highcutSmoother.setTargetValue(highcutParam->get() * 0.01f);
+    lowcutSmoother.setTargetValue(lowcutParam->get() * 0.01f);
 
     targetDelayTime = delayTimeParam->get();
 

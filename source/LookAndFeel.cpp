@@ -1,16 +1,15 @@
 // Created by Benjahmin Singh-Reynolds on 9/28/25.
 
 #include "LookAndFeel.h"
-
 #include "BinaryData.h"
-
 #include <BinaryData.h>
+#include <set>
 
 const juce::Typeface::Ptr Fonts::typeface = juce::Typeface::createSystemTypefaceFor(BinaryData::LatoMedium_ttf, BinaryData::LatoMedium_ttfSize);
 
 juce::Font Fonts::getFont(float height)
 {
-    return juce::Font(typeface).withHeight(height);
+    return juce::FontOptions(typeface).withMetricsKind(juce::TypefaceMetricsKind::legacy).withHeight(height);
 }
 
 juce::Font RotaryKnobLookAndFeel::getLabelFont([[maybe_unused]] juce::Label& label)
@@ -23,6 +22,61 @@ RotaryKnobLookAndFeel::RotaryKnobLookAndFeel()
     setColour(juce::Label::textColourId, Colors::Knob::label);
     setColour(juce::Slider::textBoxTextColourId, Colors::Knob::label);
     setColour(juce::Slider::rotarySliderFillColourId, Colors::Knob::trackActive);
+    setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    setColour(juce::CaretComponent::caretColourId, Colors::Knob::caret);
+}
+
+class RotaryKnobLabel : public juce::Label
+{
+public:
+    RotaryKnobLabel() : juce::Label() {}
+
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override {}
+
+    std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override
+    {
+        return createIgnoredAccessibilityHandler(*this);
+    }
+
+    juce::TextEditor* createEditorComponent() override
+    {
+        auto* ed = new juce::TextEditor(getName());
+        ed->applyFontToAllText(getLookAndFeel().getLabelFont(*this));
+        copyAllExplicitColoursTo(*ed);
+
+        ed->setBorder(juce::BorderSize<int>());
+        ed->setIndents(2, 1);
+        ed->setJustification(juce::Justification::centredTop);
+        ed->setPopupMenuEnabled(false);
+        ed->setInputRestrictions(8);
+        return ed;
+    }
+};
+
+juce::Label* RotaryKnobLookAndFeel::createSliderTextBox(juce::Slider& slider)
+{
+    auto label = new juce::Label();
+
+    label->setJustificationType(juce::Justification::centred);
+    label->setKeyboardType(juce::TextInputTarget::decimalKeyboard);
+    label->setColour(juce::Label::textColourId, slider.findColour(juce::Slider::textBoxTextColourId));
+    label->setColour(juce::TextEditor::textColourId, Colors::Knob::value);
+    label->setColour(juce::TextEditor::highlightedTextColourId, Colors::Knob::value);
+    label->setColour(juce::TextEditor::highlightColourId, slider.findColour(juce::Slider::rotarySliderFillColourId));
+    label->setColour(juce::TextEditor::backgroundColourId, Colors::Knob::textBoxBackground);
+
+    return label;
+}
+
+MainLookAndFeel::MainLookAndFeel()
+{
+    setColour(juce::GroupComponent::textColourId, Colors::Knob::label);
+    setColour(juce::GroupComponent::outlineColourId, Colors::Knob::outline);
+}
+
+juce::Font MainLookAndFeel::getLabelFont([[maybe_unused]] juce::Label& label)
+{
+    return Fonts::getFont();
 }
 
 void RotaryKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, [[maybe_unused]] int height,
@@ -91,4 +145,10 @@ void RotaryKnobLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, in
         g.strokePath(valueArc, strokeType);
     }
 
+}
+
+void RotaryKnobLookAndFeel::fillTextEditorBackground(juce::Graphics& g, [[maybe_unused]] int width, [[maybe_unused]] int height, juce::TextEditor& textEditor)
+{
+    g.setColour(Colors::Knob::textBoxBackground);
+    g.fillRoundedRectangle(textEditor.getLocalBounds().reduced(4, 0).toFloat(), 4.0f);
 }

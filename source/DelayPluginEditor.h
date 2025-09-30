@@ -20,6 +20,7 @@ public:
 
 private:
 
+    MainLookAndFeel mainLF;
     juce::GroupComponent delayGroup, feedbackGroup, outputGroup;
 
     // This reference is provided as a quick way for your editor to
@@ -30,6 +31,10 @@ private:
     RotaryKnob gainKnob;
     RotaryKnob mixKnob;
     RotaryKnob delayTimeKnob;
+    RotaryKnob feedbackKnob;
+    RotaryKnob stereoKnob;
+    RotaryKnob highcutKnob;
+    RotaryKnob lowcutKnob;
 
     std::unique_ptr<melatonin::Inspector> inspector;
     juce::TextButton inspectButton { "Inspect the UI" };
