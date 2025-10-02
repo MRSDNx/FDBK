@@ -10,6 +10,8 @@ DelayPluginProcessor::DelayPluginProcessor():
        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
        ), params(apvts)
 {
+    lowCutFilter.setType(juce::dsp::StateVariableTPTFilterType::highpass);
+    highCutFilter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
 }
 
 DelayPluginProcessor::~DelayPluginProcessor()
@@ -86,21 +88,35 @@ void DelayPluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
 {
     params.prepareToPlay(sampleRate);
     params.reset();
+    tempo.reset();
 
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = juce::uint32(samplesPerBlock); // type cast from the data type of samplesPerBlock. only holds +nums
     spec.numChannels = 2;
 
-    delayLine.prepare(spec);
-
     double numSamples = Parameters::maxDelayTime / 1000.0 * sampleRate;
     int maxDelayInSamples = int(std::ceil(numSamples));
-    delayLine.setMaximumDelayInSamples(maxDelayInSamples);
-    delayLine.reset();
+
+    delayLineL.setMaximumDelayInSamples(maxDelayInSamples);
+    delayLineR.setMaximumDelayInSamples(maxDelayInSamples);
+    delayLineL.reset();
+    delayLineR.reset();
 
     feedbackL = 0.0f;
     feedbackR = 0.0f;
+
+    lastLowCut = -1.0f;
+    lastHighCut = -1.0f;
+
+    lowCutFilter.prepare(spec);
+    lowCutFilter.reset();
+
+    highCutFilter.prepare(spec);
+    highCutFilter.reset();
+
+    levelL.store(0.0f);
+    levelR.store(0.0f);
 
     // DBG(maxDelayInSamples);
 }
@@ -118,7 +134,16 @@ bool DelayPluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) c
      * The function is supposed to return true for any bus layout the plugin can handle.
      */
 
-  return layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+    const auto mono = juce::AudioChannelSet::mono();
+    const auto stereo = juce::AudioChannelSet::stereo();
+    const auto mainIn = layouts.getMainInputChannelSet();
+    const auto mainOut = layouts.getMainOutputChannelSet();
+
+    if (mainIn == mono && mainOut == mono) { return true; }
+    if (mainIn == mono && mainOut == stereo) { return true; }
+    if (mainIn == stereo && mainOut == stereo) { return true; }
+
+    return false;
 }
 
 void DelayPluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, [[maybe_unused]]
@@ -133,39 +158,86 @@ void DelayPluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, [[may
         buffer.clear (i, 0, buffer.getNumSamples());
 
     params.update();
+    tempo.update(getPlayHead());
+
+    float syncedTime = float(tempo.getMillisecondsFromNoteLength(params.delayNote));
+    if (syncedTime > Parameters::maxDelayTime)
+    {
+        syncedTime = Parameters::maxDelayTime;
+    }
 
     float sampleRate = float(getSampleRate());
 
-    float* channelDataL = buffer.getWritePointer(0);
-    float* channelDataR = buffer.getWritePointer(1);
+    // logic for mono vs stereo assignment
+    auto mainInput = getBusBuffer(buffer, true, 0);
+    auto mainInputChannels = mainInput.getNumChannels();
+    auto isMainInputStereo = mainInputChannels > 1;
+    const float* inputDataL = mainInput.getReadPointer(0);
+    const float* inputDataR = mainInput.getReadPointer(isMainInputStereo ? 1 : 0);
+
+    auto mainOutput = getBusBuffer(buffer, false, 0);
+    auto mainOutputChannels = mainOutput.getNumChannels();
+    auto isMainOutputStereo = mainOutputChannels > 1;
+    float* outputDataL = mainOutput.getWritePointer(0);
+    float* outputDataR = mainOutput.getWritePointer(isMainOutputStereo ? 1 : 0);
+
+    float maxL = 0.0f;
+    float maxR = 0.0f;
 
     for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
     {
         params.smoothen();
 
+        float delayTime = params.tempoSync ? syncedTime : params.delayTime;
         float delayInSamples = params.delayTime * 0.001f * sampleRate;
-        delayLine.setDelay(delayInSamples);
 
-        float dryL = channelDataL[sample];
-        float dryR = channelDataR[sample];
+        if (params.lowcut != lastLowCut)
+        {
+            lowCutFilter.setCutoffFrequency(params.lowcut);
+            lastLowCut = params.lowcut;
+        }
+
+        if (params.highcut != lastHighCut)
+        {
+            highCutFilter.setCutoffFrequency(params.highcut);
+            lastHighCut = params.highcut;
+        }
+
+        float dryL = inputDataL[sample];
+        float dryR = inputDataR[sample];
 
         float mono = (dryL + dryR) * 0.5f;
 
-        delayLine.pushSample(0, mono*params.panL + feedbackL);
-        delayLine.pushSample(1, mono*params.panR + feedbackR);
+        delayLineL.write(mono*params.panL + feedbackL);
+        delayLineR.write(mono*params.panR + feedbackR);
 
-        float wetL = delayLine.popSample(0);
-        float wetR = delayLine.popSample(1);
+        float wetL = delayLineL.read(delayInSamples);
+        float wetR = delayLineR.read(delayInSamples);
 
         feedbackL = wetL * params.feedback;
+        feedbackL = lowCutFilter.processSample(0, feedbackL);
+        feedbackL = highCutFilter.processSample(0, feedbackL);
+
         feedbackR = wetR * params.feedback;
+        feedbackR = lowCutFilter.processSample(1, feedbackR);
+        feedbackR = highCutFilter.processSample(1, feedbackR);
 
         float mixL = dryL + wetL * params.mix;
         float mixR = dryR + wetR * params.mix;
 
-        channelDataL[sample] = mixL * params.gain;
-        channelDataR[sample] = mixR * params.gain;
+        float outL = mixL * params.gain;
+        float outR = mixR * params.gain;
+
+        outputDataL[sample] = outL;
+        outputDataR[sample] = outR;
+
+        maxL = std::max(maxL, std::abs(outL));
+        maxR = std::max(maxR, std::abs(outR));
     }
+
+    levelL.store(maxL);
+    levelR.store(maxR);
+
 #if JUCE_DEBUG
     protectYourEars(buffer);
 #endif

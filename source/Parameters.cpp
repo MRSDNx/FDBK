@@ -1,6 +1,7 @@
 // Created by Benjahmin Singh-Reynolds on 9/24/25.
 
 #include "Parameters.h"
+#include "DSP.h"
 
 // dynamic_cast helper function to keep shit clean
 template<typename T>
@@ -20,8 +21,11 @@ Parameters::Parameters(juce::AudioProcessorValueTreeState& apvts)
     castParameter(apvts, stereoParamID, stereoParam);
     castParameter(apvts, highcutParamID, highcutParam);
     castParameter(apvts, lowcutParamID, lowcutParam);
+    castParameter(apvts, tempoSyncParamID, tempoSyncParam);
+    castParameter(apvts, delayNoteParamID, delayNoteParam);
 }
 
+// converts ms to s based on user input
 static juce::String stringFromMilliseconds(float value, int)
 {
     if (value < 10.0f)
@@ -59,6 +63,17 @@ static float millisecondsFromString( const juce::String& text)
     return value;
 }
 
+static float hzFromString(const juce::String& str)
+{
+    float value = str.getFloatValue();
+    if (value < 20.0f)
+    {
+        return value * 1000.0f;
+    }
+    return value;
+}
+
+// governs how values are displayed, and how many decimal places are shown
 static juce::String stringFromDecibels(float value, int)
 {
     return juce::String(value, 1) + "dB";
@@ -69,12 +84,24 @@ static juce::String stringFromPercent(float value, int)
     return juce::String(int(value)) + "%";
 }
 
+// changes from Hz to kHz based on user input
 static juce::String stringFromHz(float value, int)
 {
-    return juce::String(int(value)) + "Hz";
+    if (value < 1000.0f)
+    {
+        return juce::String (int(value)) + "Hz";
+    }
+    else if (value < 10000.0f)
+    {
+        return juce::String (value / 1000.0f, 2) + "kHz";
+    }
+    else
+    {
+        return juce::String (value / 1000.0f, 1) + "kHz";
+    }
 }
 
-// actually creates the gain slider
+// actually creates the knobs
 juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
@@ -99,16 +126,44 @@ juce::AudioProcessorValueTreeState::ParameterLayout Parameters::createParameterL
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(stereoParamID, "Stereo",
-        juce::NormalisableRange<float> {0.0f, 100.0f, 1.0f}, 0.0f,
+        juce::NormalisableRange<float> {-100.0f, 100.0f, 1.0f}, 0.0f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromPercent)));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(highcutParamID, "High Cut",
-        juce::NormalisableRange<float> {0.0f, 20000.0f, 1.0f}, 20000.0f,
-        juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromHz)));
+        juce::NormalisableRange<float> {0.0f, 20000.0f, 1.0f, 0.3}, 20000.0f,
+        juce::AudioParameterFloatAttributes()
+        .withStringFromValueFunction(stringFromHz)
+        .withValueFromStringFunction(hzFromString)));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(lowcutParamID, "Low Cut",
-        juce::NormalisableRange<float> {0.0f, 500.0f, 1.0f}, 0.0f,
-        juce::AudioParameterFloatAttributes().withStringFromValueFunction(stringFromHz)));
+        juce::NormalisableRange<float> {0.0f, 20000.0f, 1.0f, 0.3}, 0.0f,
+        juce::AudioParameterFloatAttributes()
+        .withStringFromValueFunction(stringFromHz)
+        .withValueFromStringFunction(hzFromString)));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(tempoSyncParamID, "Tempo Sync", false));
+
+    juce::StringArray noteLengths = {
+
+        "1/32",
+        "1/16T",
+        "1/32.",
+        "1/16",
+        "1/8T",
+        "1/16.",
+        "1/8",
+        "1/4T",
+        "1/8.",
+        "1/4",
+        "1/2T",
+        "1/4.",
+        "1/2",
+        "1/1T",
+        "1/2.",
+        "1/1",
+    };
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(delayNoteParamID, "Delay Note", noteLengths, 9));
         
     return layout;
 }
@@ -143,12 +198,12 @@ void Parameters::reset() noexcept
     mixSmoother.setCurrentAndTargetValue(mixParam->get() * 0.01f);
 
     feedback = 0.0f;
-    // feedbackSmoother.setCurrentAndTargetValue(feedbackParam->get() * 0.01f);
+    feedbackSmoother.setCurrentAndTargetValue(feedbackParam->get() * 0.01f);
 
     stereo = 0.0f;
-    // stereoSmoother.setCurrentAndTargetValue(stereoParam->get() * 0.01f);
+    stereoSmoother.setCurrentAndTargetValue(stereoParam->get() * 0.01f);
 
-    highcut = 0.0f;
+    highcut = 20000.0f;
     highcutSmoother.setCurrentAndTargetValue(highcutParam->get() * 0.01f);
 
     lowcut = 0.0f;
@@ -157,13 +212,14 @@ void Parameters::reset() noexcept
 
 void Parameters::smoothen() noexcept
 {
-    // reads the currently smoothed value and puts it into the gain variable
     gain = gainSmoother.getNextValue();
     mix = mixSmoother.getNextValue();
     feedback = feedbackSmoother.getNextValue();
     stereo = stereoSmoother.getNextValue();
     highcut = highcutSmoother.getNextValue();
     lowcut = lowcutSmoother.getNextValue();
+
+    panningEqualPower(stereoSmoother.getNextValue(), panL, panR);
 
     // the 1-pole filter formula
     delayTime += (targetDelayTime - delayTime) * coeff;
@@ -179,6 +235,9 @@ void Parameters::update() noexcept
     stereoSmoother.setTargetValue(stereoParam->get() * 0.01f);
     highcutSmoother.setTargetValue(highcutParam->get() * 0.01f);
     lowcutSmoother.setTargetValue(lowcutParam->get() * 0.01f);
+
+    delayNote = delayNoteParam->getIndex();
+    tempoSync = tempoSyncParam->get();
 
     targetDelayTime = delayTimeParam->get();
 

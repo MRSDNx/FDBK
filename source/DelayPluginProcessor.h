@@ -2,6 +2,8 @@
 #include "Parameters.h"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "Tempo.h"
+#include "DelayLine.h"
 
 #if (MSVC)
 #include "ipps.h"
@@ -42,14 +44,24 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    Parameters params;
+
+    std::atomic<float> levelL, levelR;
+
 private:
 
-    Parameters params;
+
+    Tempo tempo;
 
     float feedbackL = 0.0f;
     float feedbackR = 0.0f;
 
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delayLine;
+    float lastLowCut = -1.0f;
+    float lastHighCut = -1.0f;
+
+    DelayLine delayLineL, delayLineR;
+    juce::dsp::StateVariableTPTFilter<float> lowCutFilter;
+    juce::dsp::StateVariableTPTFilter<float> highCutFilter;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayPluginProcessor)
 };

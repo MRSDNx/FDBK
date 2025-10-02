@@ -2,8 +2,9 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
-// Parameter IDs
+// Parameter IDs, constexpr is here because compiling is finicky without it
 static const juce::ParameterID gainParamID { "gain", 1 };
 static constexpr const char* gainParamIDString = "gain";
 
@@ -25,6 +26,12 @@ static constexpr const char* highcutParamIDString = "highcut";
 static const juce::ParameterID lowcutParamID { "lowcut", 1 };
 static constexpr const char* lowcutParamIDString = "lowcut";
 
+static const juce::ParameterID tempoSyncParamID { "tempoSync", 1 };
+static constexpr const char* tempoSyncParamIDString = "tempoSync";
+
+static const juce::ParameterID delayNoteParamID { "delayNote", 1 };
+static constexpr const char* delayNoteParamIDString = "delayNote";
+
 class Parameters
 {
 public:
@@ -36,6 +43,9 @@ public:
     float stereo = 0.0f;
     float highcut = 0.0f;
     float lowcut = 0.0f;
+
+    int delayNote = 0;
+    bool tempoSync = false;
 
     float panL = 0.0f;
     float panR = 1.0f;
@@ -51,7 +61,12 @@ public:
     void smoothen() noexcept;
     void update() noexcept;
 
+    juce::AudioParameterBool* tempoSyncParam { nullptr };
+
 private:
+    juce::dsp::StateVariableTPTFilter<float> lowCutFilter;
+    juce::dsp::StateVariableTPTFilter<float> highCutFilter;
+
     juce::AudioParameterFloat* gainParam { nullptr };
     juce::AudioParameterFloat* delayTimeParam { nullptr };
     juce::AudioParameterFloat* mixParam { nullptr };
@@ -59,6 +74,8 @@ private:
     juce::AudioParameterFloat* stereoParam { nullptr };
     juce::AudioParameterFloat* highcutParam { nullptr };
     juce::AudioParameterFloat* lowcutParam { nullptr };
+
+    juce::AudioParameterChoice* delayNoteParam { nullptr };
 
     juce::LinearSmoothedValue<float> gainSmoother;
     juce::LinearSmoothedValue<float> mixSmoother;
